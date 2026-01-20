@@ -1,0 +1,23 @@
+{
+  "recommendations": [
+    // Core Development
+    "dart-code.flutter",
+    "dart-code.dart-code",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    
+    // Backend / Docker
+    "ms-azuretools.vscode-docker",
+    "mongodb.mongodb-vscode",
+    "rangav.vscode-thunder-client",
+
+    // Productivity & AI
+    "github.copilot",
+    "github.copilot-chat",
+    "usernamehw.errorlens",
+    "christian-kohler.path-intellisense",
+    "wayou.vscode-todo-highlight",
+    "eamodio.gitlens",
+    "pkief.material-icon-theme"
+  ]
+}
