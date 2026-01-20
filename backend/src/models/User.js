@@ -7,36 +7,32 @@ class User {
         this.email = data.email;
         this.passwordHash = data.password_hash || data.passwordHash;
         this.role = data.role || 'user';
+        this.isVerified = !!data.is_verified;
+        this.failedLoginAttempts = data.failed_login_attempts || 0;
+        this.lockoutUntil = data.lockout_until ? new Date(data.lockout_until) : null;
+        this.verificationToken = data.verification_token;
         this.createdAt = data.created_at;
         this.updatedAt = data.updated_at;
     }
 
-    /**
-     * Verify provided password against stored hash
-     * @param {string} password 
-     * @returns {Promise<boolean>}
-     */
     async verifyPassword(password) {
         if (!this.passwordHash) return false;
         return bcrypt.compare(password, this.passwordHash);
     }
 
-    /**
-     * Return safe JSON representation (no password)
-     */
+    isLocked() {
+        return this.lockoutUntil && this.lockoutUntil > new Date();
+    }
+
     toJSON() {
         return {
             id: this.id,
             username: this.username,
             email: this.email,
             role: this.role,
-            createdAt: this.createdAt,
-            updatedAt: this.updatedAt
+            isVerified: this.isVerified,
+            createdAt: this.createdAt
         };
-    }
-
-    static async hashPassword(password) {
-        return bcrypt.hash(password, 10);
     }
 }
 

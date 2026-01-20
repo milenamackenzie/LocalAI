@@ -11,8 +11,17 @@ describe('Integration Tests: Feature Endpoints', () => {
 
   beforeAll(async () => {
     await global.clearDb();
-    const res = await request(app).post('/api/v1/auth/register').send(user);
-    token = res.body.data.token;
+    // 1. Register
+    await request(app).post('/api/v1/auth/register').send(user);
+    // 2. Login to get token
+    const res = await request(app).post('/api/v1/auth/login').send({
+        email: user.email,
+        password: user.password
+    });
+    if (!res.body.data) {
+        console.error('Login failed in features test setup:', JSON.stringify(res.body, null, 2));
+    }
+    token = res.body.data.accessToken;
   });
 
   describe('Interactions API', () => {

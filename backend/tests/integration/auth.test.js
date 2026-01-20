@@ -15,15 +15,15 @@ describe('Integration Tests: Auth Endpoints', () => {
   };
 
   describe('POST /api/v1/auth/register', () => {
-    test('should register a new user successfully', async () => {
+    test('should register a new user successfully and return verification token', async () => {
       const res = await request(app)
         .post('/api/v1/auth/register')
         .send(validUser);
       
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.user.email).toBe(validUser.email);
-      expect(res.body.data.token).toBeDefined();
+      expect(res.body.data.verificationToken).toBeDefined();
+      expect(res.body.data.token).toBeUndefined(); // No access token on register anymore
     });
 
     test('should fail with weak password', async () => {
@@ -62,7 +62,8 @@ describe('Integration Tests: Auth Endpoints', () => {
         });
       
       expect(res.status).toBe(200);
-      expect(res.body.data.token).toBeDefined();
+      expect(res.body.data.accessToken).toBeDefined();
+      expect(res.body.data.refreshToken).toBeDefined();
     });
 
     test('should fail with wrong password', async () => {
@@ -78,17 +79,23 @@ describe('Integration Tests: Auth Endpoints', () => {
   });
 
   describe('GET /api/v1/users/profile', () => {
-    let token;
+    let accessToken;
 
     beforeEach(async () => {
-      const reg = await request(app).post('/api/v1/auth/register').send(validUser);
-      token = reg.body.data.token;
+      // 1. Register
+      await request(app).post('/api/v1/auth/register').send(validUser);
+      // 2. Login to get token
+      const loginRes = await request(app).post('/api/v1/auth/login').send({
+          email: validUser.email,
+          password: validUser.password
+      });
+      accessToken = loginRes.body.data.accessToken;
     });
 
     test('should return profile for authenticated user', async () => {
       const res = await request(app)
         .get('/api/v1/users/profile')
-        .set('Authorization', `Bearer ${token}`);
+        .set('Authorization', `Bearer ${accessToken}`);
       
       expect(res.status).toBe(200);
       expect(res.body.data.email).toBe(validUser.email);
