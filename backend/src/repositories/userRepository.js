@@ -26,12 +26,12 @@ class UserRepository extends BaseRepository {
   }
 
   async findByEmail(email) {
-    const row = await this.db.get('SELECT * FROM users WHERE email = ?', [email]);
+    const row = await this.db.get('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL', [email]);
     return row ? new User(row) : null;
   }
   
   async findByUsername(username) {
-    const row = await this.db.get('SELECT * FROM users WHERE username = ?', [username]);
+    const row = await this.db.get('SELECT * FROM users WHERE username = ? AND deleted_at IS NULL', [username]);
     return row ? new User(row) : null;
   }
   
@@ -72,6 +72,40 @@ class UserRepository extends BaseRepository {
 
   async updatePassword(id, passwordHash) {
     return this.db.run('UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL, failed_login_attempts = 0, lockout_until = NULL WHERE id = ?', [passwordHash, id]);
+  }
+
+  async update(id, updates) {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return;
+
+    const setClause = keys.map(key => `${key} = ?`).join(', ');
+    const values = [...Object.values(updates), id];
+
+    return this.db.run(`UPDATE users SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, values);
+  }
+
+  async softDelete(id) {
+    return this.db.run('UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+  }
+
+  async search({ query, role, limit, offset }) {
+    let sql = 'SELECT * FROM users WHERE deleted_at IS NULL';
+    const params = [];
+
+    if (role) {
+        sql += ' AND role = ?';
+        params.push(role);
+    }
+
+    if (query) {
+        sql += ' AND (username LIKE ? OR email LIKE ?)';
+        params.push(`%${query}%`, `%${query}%`);
+    }
+
+    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
+    return this.db.all(sql, params);
   }
 }
 

@@ -15,13 +15,13 @@ class InteractionRepository extends BaseRepository {
     return result.id;
   }
 
-  async getUserHistory(userId, limit = 50) {
+  async getUserHistory(userId, limit = 50, offset = 0) {
     return this.db.all(`
         SELECT * FROM user_interactions 
         WHERE user_id = ? 
         ORDER BY created_at DESC 
-        LIMIT ?
-    `, [userId, limit]);
+        LIMIT ? OFFSET ?
+    `, [userId, limit, offset]);
   }
 }
 
