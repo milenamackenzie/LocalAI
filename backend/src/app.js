@@ -5,14 +5,14 @@ const morgan = require('morgan');
 const logger = require('./utils/logger');
 const routes = require('./routes');
 const { errorHandler } = require('./middleware/errorHandler');
-const rateLimit = require('./middleware/rateLimitMiddleware');
+const { apiLimiter } = require('./middleware/rateLimitMiddleware');
 
 const app = express();
 
 // Security Middleware
 app.use(helmet());
 app.use(cors());
-app.use(rateLimit); // Apply rate limiting globally
+app.use(apiLimiter); // Apply rate limiting globally
 
 // Request Parsing
 app.use(express.json());
