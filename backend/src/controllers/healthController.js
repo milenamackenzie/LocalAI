@@ -1,5 +1,4 @@
 const db = require('../database/connection');
-const logger = require('../utils/logger');
 
 exports.checkHealth = async (req, res) => {
     const healthCheck = {

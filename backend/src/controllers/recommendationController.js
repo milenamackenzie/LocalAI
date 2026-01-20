@@ -1,5 +1,4 @@
 const recommendationService = require('../services/recommendationService');
-const logger = require('../utils/logger');
 
 exports.getRecommendations = async (req, res, next) => {
   try {
@@ -39,7 +38,7 @@ exports.generateRecommendations = async (req, res, next) => {
   }
 };
 
-exports.getRecommendationById = async (req, res, next) => {
+exports.getRecommendationById = async (req, res, _next) => {
     // Basic implementation using the list filter for now, or add specific repo method
     // For simplicity, we assume frontend has list or we add detailed fetch if needed
     res.status(501).json({ message: 'Not implemented yet' });

@@ -1,7 +1,6 @@
 const recommendationRepository = require('../repositories/recommendationRepository');
 const aiService = require('../services/aiService');
 const preferenceRepository = require('../repositories/preferenceRepository');
-const logger = require('../utils/logger');
 
 class RecommendationService {
     

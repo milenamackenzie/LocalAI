@@ -1,6 +1,6 @@
 const rateLimit = require('express-rate-limit');
 
-const skipIfTest = (req, res) => process.env.NODE_ENV === 'test';
+const skipIfTest = () => process.env.NODE_ENV === 'test';
 
 exports.authLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
