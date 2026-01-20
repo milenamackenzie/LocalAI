@@ -11,6 +11,8 @@ class User {
         this.failedLoginAttempts = data.failed_login_attempts || 0;
         this.lockoutUntil = data.lockout_until ? new Date(data.lockout_until) : null;
         this.verificationToken = data.verification_token;
+        this.avatarUrl = data.avatar_url;
+        this.deletedAt = data.deleted_at;
         this.createdAt = data.created_at;
         this.updatedAt = data.updated_at;
     }
@@ -31,6 +33,7 @@ class User {
             email: this.email,
             role: this.role,
             isVerified: this.isVerified,
+            avatarUrl: this.avatarUrl,
             createdAt: this.createdAt
         };
     }
