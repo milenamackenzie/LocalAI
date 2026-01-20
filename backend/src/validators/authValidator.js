@@ -1,6 +1,6 @@
-const { body, param, query } = require('express-validator');
+const { body, query } = require('express-validator');
 
-// Reusable validation chains
+// ... existing chains ...
 const emailChain = () => body('email')
     .trim()
     .notEmpty().withMessage('Email is required')
@@ -29,41 +29,24 @@ exports.registerValidators = [
 ];
 
 exports.loginValidators = [
-    body('email')
-        .trim()
-        .notEmpty().withMessage('Email is required')
-        .isEmail().withMessage('Invalid email format')
-        .normalizeEmail(),
-    body('password').notEmpty().withMessage('Password is required')
+    body('email').trim().notEmpty().isEmail(),
+    body('password').notEmpty()
 ];
 
-exports.updateProfileValidators = [
-    body('username')
-        .optional()
-        .trim()
-        .isLength({ min: 3, max: 30 })
-        .matches(/^[a-zA-Z0-9_]+$/)
-        .escape(),
-    body('email')
-        .optional()
-        .trim()
-        .isEmail()
-        .normalizeEmail()
+exports.refreshTokenValidators = [
+    body('refreshToken').notEmpty().withMessage('Refresh Token is required')
 ];
 
-exports.changePasswordValidators = [
-    body('currentPassword').notEmpty().withMessage('Current password is required'),
-    body('newPassword')
-        .notEmpty().withMessage('New password is required')
-        .isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
-        .matches(/[A-Z]/).withMessage('Must contain uppercase')
-        .matches(/[a-z]/).withMessage('Must contain lowercase')
-        .matches(/[0-9]/).withMessage('Must contain number')
-        .matches(/[\W_]/).withMessage('Must contain special char')
-        .custom((value, { req }) => {
-            if (value === req.body.currentPassword) {
-                throw new Error('New password must be different from current password');
-            }
-            return true;
-        })
+exports.verifyEmailValidators = [
+    query('token').notEmpty().withMessage('Verification token is required')
+];
+
+exports.forgotPasswordValidators = [
+    body('email').trim().notEmpty().isEmail()
+];
+
+exports.resetPasswordValidators = [
+    body('token').notEmpty().withMessage('Reset token is required'),
+    body('newPassword').isLength({ min: 8 }).withMessage('Password must be at least 8 chars')
+      .matches(/[A-Z]/).matches(/[a-z]/).matches(/[0-9]/).matches(/[\W_]/)
 ];
