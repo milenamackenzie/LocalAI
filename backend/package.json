@@ -7,7 +7,10 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --runInBand",
+    "test:security": "jest tests/security --runInBand",
+    "test:perf": "node tests/advanced/perf-bench.js",
     "lint": "eslint src/**/*.js",
+
     "docker:build": "docker build -t localai-backend ."
   },
   "dependencies": {

@@ -1,14 +1,12 @@
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
+const AppError = require('../utils/AppError');
 
 const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      success: false,
-      message: 'Access denied. No token provided or invalid format.',
-    });
+    return next(new AppError('Access denied. No token provided or invalid format.', 401, 'UNAUTHORIZED'));
   }
 
   const token = authHeader.split(' ')[1];
@@ -22,10 +20,7 @@ const authenticate = (req, res, next) => {
     next();
   } catch (err) {
     logger.warn(`Authentication failed: ${err.message}`);
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid or expired token.',
-    });
+    return next(new AppError('Invalid or expired token.', 401, 'UNAUTHORIZED'));
   }
 };
 

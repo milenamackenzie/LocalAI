@@ -3,23 +3,28 @@ const logger = require('../utils/logger');
 
 class AIService {
     constructor() {
-        // Default to local LM Studio endpoint
         this.baseUrl = process.env.LM_STUDIO_URL || 'http://localhost:1234/v1';
-        this.model = process.env.AI_MODEL || 'local-model'; // Can be overridden
+        this.model = process.env.AI_MODEL || 'local-model';
+        
+        // Circuit Breaker State
+        this.failureCount = 0;
+        this.lastFailureTime = null;
+        this.state = 'CLOSED'; // CLOSED, OPEN, HALF_OPEN
+        this.FAILURE_THRESHOLD = 5;
+        this.RECOVERY_TIMEOUT = 30000; // 30 seconds
     }
 
-    /**
-     * Generate a recommendation based on user profile and context
-     * @param {Object} userProfile - User interests, past interactions
-     * @param {String} context - Specific request context (e.g., "weekend activity")
-     * @returns {Promise<Object>} - Structured recommendation
-     */
     async generateRecommendation(userProfile, context) {
-        // Construct prompt
+        this._checkCircuit();
+
+        if (this.state === 'OPEN') {
+            logger.warn('Circuit Breaker is OPEN. Returning fallback response.');
+            return this._mockResponse(context);
+        }
+
         const prompt = this._buildPrompt(userProfile, context);
         
         try {
-            // Check if we are in test/dev mode without real AI
             if (process.env.NODE_ENV === 'test' || process.env.MOCK_AI === 'true') {
                 return this._mockResponse(context);
             }
@@ -34,15 +39,39 @@ class AIService {
                 max_tokens: 500
             });
 
+            this._onSuccess();
             const content = response.data.choices[0].message.content;
             return this._parseResponse(content);
 
         } catch (error) {
+            this._onFailure(error);
             logger.error(`AI Generation failed: ${error.message}`);
-            // Fallback
             return this._mockResponse(context);
         }
     }
+
+    _checkCircuit() {
+        if (this.state === 'OPEN' && Date.now() - this.lastFailureTime > this.RECOVERY_TIMEOUT) {
+            this.state = 'HALF_OPEN';
+            logger.info('Circuit Breaker is HALF_OPEN. Attempting recovery.');
+        }
+    }
+
+    _onSuccess() {
+        this.failureCount = 0;
+        this.state = 'CLOSED';
+        this.lastFailureTime = null;
+    }
+
+    _onFailure(error) {
+        this.failureCount++;
+        this.lastFailureTime = Date.now();
+        if (this.failureCount >= this.FAILURE_THRESHOLD) {
+            this.state = 'OPEN';
+            logger.error(`Circuit Breaker transition to OPEN due to ${this.failureCount} failures.`);
+        }
+    }
+
 
     _buildPrompt(profile, context) {
         return `

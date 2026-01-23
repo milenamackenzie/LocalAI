@@ -31,6 +31,12 @@ const options = {
           type: 'object',
           properties: {
             success: { type: 'boolean', example: false },
+            status: { type: 'string', example: 'error' },
+            errorCode: { 
+              type: 'string', 
+              description: 'Standardized error code',
+              enum: ['INTERNAL_ERROR', 'UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION_ERROR', 'RATE_LIMIT_EXCEEDED'] 
+            },
             message: { type: 'string' },
             stack: { type: 'object' },
           },
@@ -47,7 +53,22 @@ const options = {
           },
         },
       },
+      parameters: {
+        RateLimitHeaders: {
+          XRateLimitLimit: {
+            in: 'header',
+            description: 'The maximum number of requests allowed in the time window',
+            schema: { type: 'integer' }
+          },
+          XRateLimitRemaining: {
+            in: 'header',
+            description: 'The number of requests remaining in the current window',
+            schema: { type: 'integer' }
+          }
+        }
+      }
     },
+
     security: [
       {
         bearerAuth: [],

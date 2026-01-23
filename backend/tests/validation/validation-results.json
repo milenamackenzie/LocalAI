@@ -1,0 +1,37 @@
+[
+  {
+    "test": "Relevance Test",
+    "metric": "Category Match Rate",
+    "value": "100%",
+    "passed": true,
+    "details": "User: Fitness enthusiast, Results: 10/10 Fitness items"
+  },
+  {
+    "test": "Diversity Test",
+    "metric": "Unique Recommendations",
+    "value": 6,
+    "passed": true,
+    "details": "Unique items in 10 requests: 6"
+  },
+  {
+    "test": "Cold Start Test",
+    "metric": "Default Category",
+    "value": "General",
+    "passed": true,
+    "details": "New user with no history received: Public Park (General)"
+  },
+  {
+    "test": "Latency Test",
+    "metric": "Response Time",
+    "value": "58ms",
+    "passed": true,
+    "details": "Time taken for Hybrid (AI) generation: 58ms"
+  },
+  {
+    "test": "A/B Test Comparison",
+    "metric": "Traditional vs Hybrid Latency",
+    "value": "Trad: 5ms, Hybrid: 56ms",
+    "passed": true,
+    "details": "Hybrid overhead: 51ms"
+  }
+]
