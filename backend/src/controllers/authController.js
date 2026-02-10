@@ -50,17 +50,21 @@ exports.register = async (req, res, next) => {
 
     logger.info(`New user registered: ${user.id} (${email}). Verification Token: ${verificationToken}`);
 
-    // In a real app, send email with verificationToken here.
-    // For this implementation, returning it in response for testing.
+    // Automatically generate tokens for immediate login after registration
+    const accessToken = generateAccessToken(user);
+    const refreshToken = await generateRefreshToken(user);
     
     res.status(201).json({
       success: true,
-      message: 'User registered successfully. Please verify your email.',
+      message: 'User registered successfully',
       data: {
-        userId: user.id,
+        accessToken,
+        refreshToken,
+        user: user.toJSON(),
         verificationToken // For development/testing ease
       }
     });
+
   } catch (err) {
     next(err);
   }

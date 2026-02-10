@@ -32,22 +32,23 @@ class RecommendationRepository extends BaseRepository {
   async create(recData) {
     const { 
         userId, itemType, itemTitle, itemDescription, score, 
-        category, context 
+        category, context, reasoning
     } = recData;
     
     const sql = `
       INSERT INTO recommendations (
           user_id, item_type, item_title, item_description, 
-          recommendation_score, category, generation_context
+          recommendation_score, category, generation_context, ai_reasoning
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const result = await this.db.run(sql, [
         userId, itemType, itemTitle, itemDescription, 
-        score, category, context
+        score, category, context, reasoning
     ]);
     return { id: result.id, ...recData };
   }
+
 
   async updateFeedback(id, userId, feedback) {
       return this.db.run(
@@ -84,6 +85,11 @@ class RecommendationRepository extends BaseRepository {
 
       return { stats, byCategory };
   }
+
+  async findById(id, userId) {
+      return this.db.get('SELECT * FROM recommendations WHERE id = ? AND user_id = ?', [id, userId]);
+  }
 }
+
 
 module.exports = new RecommendationRepository();

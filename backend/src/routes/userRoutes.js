@@ -1,6 +1,8 @@
 const express = require('express');
 const userController = require('../controllers/userController');
+const bookmarkController = require('../controllers/bookmarkController');
 const authenticate = require('../middleware/authMiddleware');
+
 const validate = require('../middleware/validate');
 const isAdmin = require('../middleware/adminMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -40,6 +42,12 @@ router.put(
 
 // Activity
 router.get('/activity', userController.getActivity);
+
+// Bookmarks
+router.get('/bookmarks', bookmarkController.getBookmarks);
+router.post('/bookmarks', bookmarkController.addBookmark);
+router.delete('/bookmarks/:id', bookmarkController.removeBookmark);
+
 
 // Admin Search
 router.get(

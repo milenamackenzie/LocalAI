@@ -38,11 +38,24 @@ exports.generateRecommendations = async (req, res, next) => {
   }
 };
 
-exports.getRecommendationById = async (req, res, _next) => {
-    // Basic implementation using the list filter for now, or add specific repo method
-    // For simplicity, we assume frontend has list or we add detailed fetch if needed
-    res.status(501).json({ message: 'Not implemented yet' });
+exports.getRecommendationById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const recommendation = await recommendationService.getRecommendationById(id, req.user.id);
+        
+        if (!recommendation) {
+            return res.status(404).json({ success: false, message: 'Recommendation not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: recommendation
+        });
+    } catch (err) {
+        next(err);
+    }
 };
+
 
 exports.updateFeedback = async (req, res, next) => {
     try {

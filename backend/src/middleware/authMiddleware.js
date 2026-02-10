@@ -12,7 +12,7 @@ const authenticate = (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const secret = process.env.JWT_SECRET || 'fallback_secret_for_dev_only';
+    const secret = process.env.JWT_SECRET || 'fallback_secret';
     const decoded = jwt.verify(token, secret);
     
     // Attach user info to request

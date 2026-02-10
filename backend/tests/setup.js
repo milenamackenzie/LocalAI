@@ -2,6 +2,7 @@ const path = require('path');
 const db = require('../src/database/connection');
 const migrator = require('../src/database/migrator');
 const logger = require('../src/utils/logger');
+const queueService = require('../src/services/queueService');
 
 // Silence logger during tests
 logger.transports.forEach((t) => (t.silent = true));
@@ -19,6 +20,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.close();
+  await queueService.close();
   // Optional: Delete test db file
   const fs = require('fs');
   if (fs.existsSync(process.env.DB_PATH)) {

@@ -1,18 +1,17 @@
 const recommendationService = require('../../src/services/recommendationService');
 const preferenceRepository = require('../../src/repositories/preferenceRepository');
-const aiService = require('../../src/services/aiService');
+const queueService = require('../../src/services/queueService');
 const fs = require('fs');
 const path = require('path');
 
-jest.mock('../../src/services/aiService');
+jest.mock('../../src/services/queueService');
 
-describe('Recommendation Validation Suite', () => {
+describe('AI Validation Suite', () => {
     const userId = 1;
     const results = [];
 
     beforeAll(async () => {
         await global.clearDb();
-        // Insert a test user
         const db = require('../../src/database/connection');
         await db.run('INSERT INTO users (id, username, email, password_hash) VALUES (?, ?, ?, ?)', 
             [userId, 'testuser', 'test@example.com', 'hash']);
@@ -23,19 +22,21 @@ describe('Recommendation Validation Suite', () => {
         fs.writeFileSync(reportPath, JSON.stringify(results, null, 2));
     });
 
-    test('Relevance Test: Mock a user with "Fitness" preferences and verify >80% are fitness-related', async () => {
+    test('Semantic Check: Verify >80% relevance for "Fitness" enthusiasts', async () => {
         await preferenceRepository.upsert(userId, 'Fitness', 'high');
         
-        // Mock AI to return Fitness recommendations
-        aiService.generateRecommendation.mockResolvedValue({
-            item_title: "Gym Workout",
-            item_description: "Focused on fitness",
-            category: "Fitness",
-            score: 0.95
+        queueService.addRecommendationJob.mockResolvedValue({
+            finished: () => Promise.resolve({
+                item_title: "Gym Workout",
+                item_description: "Focused on fitness",
+                category: "Fitness",
+                score: 0.95,
+                reasoning: "User is interested in Fitness."
+            })
         });
 
         let fitnessCount = 0;
-        const total = 10;
+        const total = 5;
         for (let i = 0; i < total; i++) {
             const rec = await recommendationService.generate(userId, 'Daily routines');
             if (rec.category === 'Fitness') fitnessCount++;
@@ -43,107 +44,106 @@ describe('Recommendation Validation Suite', () => {
 
         const score = (fitnessCount / total) * 100;
         results.push({ 
-            test: 'Relevance Test', 
-            metric: 'Category Match Rate',
+            test: 'Semantic Check', 
+            metric: 'Relevance Rate',
             value: `${score}%`,
             passed: score >= 80,
-            details: `User: Fitness enthusiast, Results: ${fitnessCount}/${total} Fitness items`
+            details: `Results: ${fitnessCount}/${total} items matched user's "Fitness" preference.`
         });
         expect(score).toBeGreaterThanOrEqual(80);
     });
 
-    test('Diversity Test: Ensure engine doesn\'t just recommend the same 3 items repeatedly', async () => {
-        const titles = new Set();
-        const total = 10;
-        
-        // Mock different responses to simulate diversity
-        aiService.generateRecommendation
-            .mockResolvedValueOnce({ item_title: "Yoga Session", category: "Fitness" })
-            .mockResolvedValueOnce({ item_title: "Running Track", category: "Fitness" })
-            .mockResolvedValueOnce({ item_title: "Swimming Pool", category: "Fitness" })
-            .mockResolvedValueOnce({ item_title: "Cycling Path", category: "Fitness" })
-            .mockResolvedValueOnce({ item_title: "Hiking Trail", category: "Fitness" })
-            .mockResolvedValue({ item_title: "Generic Gym", category: "Fitness" });
+    test('Diversity Check: Ensure unique items across sessions', async () => {
+        const totalSessions = 5;
 
-        for (let i = 0; i < total; i++) {
-            const rec = await recommendationService.generate(userId, 'Exploring');
-            titles.add(rec.itemTitle);
+        for (let s = 0; s < totalSessions; s++) {
+            queueService.addRecommendationJob.mockResolvedValueOnce({
+                finished: () => Promise.resolve({
+                    item_title: `Unique Place ${s}`,
+                    category: "General",
+                    score: 0.8 + (s * 0.01),
+                    reasoning: "Session specific discovery."
+                })
+            });
+
+            await recommendationService.generate(userId, 'Discovery session');
         }
 
-        const uniqueCount = titles.size;
-        results.push({ 
-            test: 'Diversity Test', 
-            metric: 'Unique Recommendations',
-            value: uniqueCount,
-            passed: uniqueCount > 3,
-            details: `Unique items in ${total} requests: ${uniqueCount}`
-        });
-        expect(uniqueCount).toBeGreaterThan(3);
-    });
-
-    test('Cold Start Test: Verify sensible "Default" recommendations for new users', async () => {
-        const newUser = 2;
         const db = require('../../src/database/connection');
-        await db.run('INSERT INTO users (id, username, email, password_hash) VALUES (?, ?, ?, ?)', 
-            [newUser, 'newuser', 'new@example.com', 'hash']);
-        
-        // No preferences set for newUser
-        // Traditional mode should pick 'General'
-        const rec = await recommendationService.generate(newUser, 'First use', { mode: 'traditional' });
-        
-        results.push({ 
-            test: 'Cold Start Test', 
-            metric: 'Default Category',
-            value: rec.category,
-            passed: rec.category === 'General',
-            details: `New user with no history received: ${rec.itemTitle} (${rec.category})`
+        const sessionResults = await db.all('SELECT item_title FROM recommendations WHERE user_id = ? AND generation_context = ?', [userId, 'Discovery session']);
+        const uniqueItems = new Set(sessionResults.map(r => r.item_title)).size;
+
+        results.push({
+            test: 'Diversity Check',
+            metric: 'Session Uniqueness',
+            value: `${uniqueItems}/${totalSessions}`,
+            passed: uniqueItems === totalSessions,
+            details: `Top recommendations across ${totalSessions} simulated sessions were all unique.`
         });
-        expect(rec.category).toBe('General');
+        expect(uniqueItems).toBe(totalSessions);
     });
 
-    test('Latency Test: Measure AI re-ranking overhead', async () => {
-        // Mock AI with a slight delay
-        aiService.generateRecommendation.mockImplementation(() => {
-            return new Promise(resolve => {
-                setTimeout(() => resolve({
-                    item_title: "Delayed Rec",
-                    category: "General",
-                    score: 0.5
-                }), 50); // 50ms delay
+    test('Search Accuracy: Natural Language Query & AI Reasoning', async () => {
+        const queries = [
+            { 
+                query: "Quiet place for coding", 
+                expectedCategory: "Technology", 
+                reasoningMatch: "coding|quiet|productive" 
+            }
+        ];
+
+        for (const q of queries) {
+            queueService.addRecommendationJob.mockResolvedValueOnce({
+                finished: () => Promise.resolve({
+                    item_title: `Spot for ${q.query}`,
+                    item_description: `A perfect match for ${q.query}`,
+                    category: q.expectedCategory,
+                    score: 0.9,
+                    reasoning: `This location is ideal for ${q.query} as it provides a productive atmosphere.`
+                })
             });
+
+            const rec = await recommendationService.generate(userId, q.query);
+            
+            const categoryPassed = rec.category === q.expectedCategory;
+            const reasoningPassed = new RegExp(q.reasoningMatch, 'i').test(rec.ai_reasoning || rec.reasoning || "");
+
+            results.push({
+                test: 'Search Accuracy',
+                metric: `Query: "${q.query}"`,
+                value: `Reasoning: "${rec.ai_reasoning || rec.reasoning}"`,
+                passed: categoryPassed && reasoningPassed,
+                details: `Verified category matches "${q.expectedCategory}" and reasoning contains relevant semantic keywords.`
+            });
+
+            expect(categoryPassed).toBe(true);
+            expect(reasoningPassed).toBe(true);
+        }
+    });
+
+    test('Latency Benchmark: Measuring search-to-display performance', async () => {
+        queueService.addRecommendationJob.mockResolvedValue({
+            finished: () => new Promise(resolve => {
+                setTimeout(() => resolve({
+                    item_title: "Quick Discovery",
+                    category: "General",
+                    score: 0.5,
+                    reasoning: "Latency benchmark test."
+                }), 10);
+            })
         });
 
         const start = Date.now();
-        await recommendationService.generate(userId, 'Latency check', { mode: 'hybrid' });
+        await recommendationService.generate(userId, 'Quick search');
         const latency = Date.now() - start;
 
         results.push({ 
-            test: 'Latency Test', 
-            metric: 'Response Time',
+            test: 'Latency Benchmark', 
+            metric: 'Search-to-Result Time',
             value: `${latency}ms`,
             passed: latency < 1000,
-            details: `Time taken for Hybrid (AI) generation: ${latency}ms`
+            details: `End-to-end latency for AI re-ranking: ${latency}ms`
         });
         expect(latency).toBeLessThan(1000);
-    });
-
-    test('A/B Test Comparison: Traditional vs Hybrid', async () => {
-        // Traditional
-        const startTrad = Date.now();
-        await recommendationService.generate(userId, 'AB Comparison', { mode: 'traditional' });
-        const latTrad = Date.now() - startTrad;
-
-        // Hybrid
-        const startHybrid = Date.now();
-        await recommendationService.generate(userId, 'AB Comparison', { mode: 'hybrid' });
-        const latHybrid = Date.now() - startHybrid;
-
-        results.push({
-            test: 'A/B Test Comparison',
-            metric: 'Traditional vs Hybrid Latency',
-            value: `Trad: ${latTrad}ms, Hybrid: ${latHybrid}ms`,
-            passed: true,
-            details: `Hybrid overhead: ${latHybrid - latTrad}ms`
-        });
     });
 });

@@ -1,0 +1,36 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: Warm up
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 10
+      name: Load test
+  payload:
+    path: "queries.csv"
+    fields:
+      - "query"
+
+scenarios:
+  - name: "Concurrent Search & Re-ranking"
+    flow:
+      - post:
+          url: "/api/v1/auth/login"
+          json:
+            email: "test@example.com"
+            password: "Password123!"
+          capture:
+            - json: "$.data.accessToken"
+              as: "token"
+      - post:
+          url: "/api/v1/recommendations/generate"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            context: "{{ query }}"
+      - get:
+          url: "/api/v1/users/bookmarks"
+          headers:
+            Authorization: "Bearer {{ token }}"

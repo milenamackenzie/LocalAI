@@ -1,37 +1,30 @@
 [
   {
-    "test": "Relevance Test",
-    "metric": "Category Match Rate",
+    "test": "Semantic Check",
+    "metric": "Relevance Rate",
     "value": "100%",
     "passed": true,
-    "details": "User: Fitness enthusiast, Results: 10/10 Fitness items"
+    "details": "Results: 5/5 items matched user's \"Fitness\" preference."
   },
   {
-    "test": "Diversity Test",
-    "metric": "Unique Recommendations",
-    "value": 6,
+    "test": "Diversity Check",
+    "metric": "Session Uniqueness",
+    "value": "5/5",
     "passed": true,
-    "details": "Unique items in 10 requests: 6"
+    "details": "Top recommendations across 5 simulated sessions were all unique."
   },
   {
-    "test": "Cold Start Test",
-    "metric": "Default Category",
-    "value": "General",
+    "test": "Search Accuracy",
+    "metric": "Query: \"Quiet place for coding\"",
+    "value": "Reasoning: \"This location is ideal for Quiet place for coding as it provides a productive atmosphere.\"",
     "passed": true,
-    "details": "New user with no history received: Public Park (General)"
+    "details": "Verified category matches \"Technology\" and reasoning contains relevant semantic keywords."
   },
   {
-    "test": "Latency Test",
-    "metric": "Response Time",
-    "value": "58ms",
+    "test": "Latency Benchmark",
+    "metric": "Search-to-Result Time",
+    "value": "23ms",
     "passed": true,
-    "details": "Time taken for Hybrid (AI) generation: 58ms"
-  },
-  {
-    "test": "A/B Test Comparison",
-    "metric": "Traditional vs Hybrid Latency",
-    "value": "Trad: 5ms, Hybrid: 56ms",
-    "passed": true,
-    "details": "Hybrid overhead: 51ms"
+    "details": "End-to-end latency for AI re-ranking: 23ms"
   }
 ]

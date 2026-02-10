@@ -3,6 +3,7 @@ const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
 const recommendationRoutes = require('./recommendationRoutes');
 const interactionRoutes = require('./interactionRoutes');
+const reviewRoutes = require('./reviewRoutes');
 
 const router = express.Router();
 
@@ -14,6 +15,8 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/recommendations', recommendationRoutes);
 router.use('/interactions', interactionRoutes);
+router.use('/', reviewRoutes);
+
 
 router.get('/health', healthController.checkHealth);
 

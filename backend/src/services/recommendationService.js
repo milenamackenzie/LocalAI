@@ -1,11 +1,16 @@
 const recommendationRepository = require('../repositories/recommendationRepository');
-const aiService = require('../services/aiService');
 const preferenceRepository = require('../repositories/preferenceRepository');
+const queueService = require('./queueService');
+const logger = require('../utils/logger');
 
 class RecommendationService {
     
     async getRecommendations(userId, filters) {
         return await recommendationRepository.findWithFilters({ userId, ...filters });
+    }
+
+    async getRecommendationById(id, userId) {
+        return await recommendationRepository.findById(id, userId);
     }
 
     async generate(userId, context, options = {}) {
@@ -40,8 +45,12 @@ class RecommendationService {
                 context: context
             };
         } else {
-            // 2. Call AI Service (Hybrid)
-            const aiResult = await aiService.generateRecommendation(userProfile, context);
+            // 2. Call AI Service via Queue (Hybrid) to handle concurrency
+            logger.info(`Adding AI recommendation request to queue for user ${userId}`);
+            const job = await queueService.addRecommendationJob(userProfile, context);
+            
+            // Wait for job completion (up to 30 seconds)
+            const aiResult = await job.finished();
 
             // 3. Prepare Recommendation Data
             recData = {
@@ -51,7 +60,8 @@ class RecommendationService {
                 itemDescription: aiResult.item_description,
                 score: aiResult.score || 0.5,
                 category: aiResult.category || 'general',
-                context: context
+                context: context,
+                reasoning: aiResult.reasoning
             };
         }
 

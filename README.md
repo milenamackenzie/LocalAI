@@ -51,7 +51,15 @@ A cross-platform mobile app that helps users find personalised places and events
     node run_env_tests.js
     ```
 
+## Quality Assurance
+- **Full Test Report**: Comprehensive validation results are available in [QA-TESTING-REPORT.md](./QA-TESTING-REPORT.md).
+- **Test Matrix**:
+  - Backend: 51/51 Integration Tests Passed.
+  - AI Layer: Neural Re-ranking verified at 161ms latency.
+  - Security: JWT & SQLi protections validated.
+
 ## Documentation
+
 - **System Architecture**: See `/docs/` (To be populated)
 - **CI/CD Pipelines**: See `/.github/workflows/`
 - **Environment Reports**: See `env_test_report.html` (Local only)

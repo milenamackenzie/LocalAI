@@ -24,7 +24,7 @@ void main() {
          // This might fail in some IDEs if not explicitly passed, 
          // but essential for CI/CLI builds.
          // We warn instead of failing if strictly local and relying on local.properties
-         print('WARNING: ANDROID_HOME is not set in environment variables.');
+         // Warning: ANDROID_HOME is not set in environment variables.
       } else {
         final dir = Directory(androidHome);
         if (!dir.existsSync()) {

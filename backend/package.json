@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "test": "jest --runInBand",
     "test:security": "jest tests/security --runInBand",
-    "test:perf": "node tests/advanced/perf-bench.js",
+    "test:stress": "node tests/performance/sqlite_stress.js",
+    "test:load": "artillery run tests/performance/search_load.yml",
     "lint": "eslint src/**/*.js",
 
     "docker:build": "docker build -t localai-backend ."
@@ -17,6 +18,7 @@
     "autocannon": "^8.0.0",
     "axios": "^1.13.2",
     "bcrypt": "^5.1.1",
+    "bull": "^4.16.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
     "express": "^4.18.2",
@@ -27,6 +29,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "prom-client": "^15.1.3",
+    "redis": "^5.10.0",
     "response-time": "^2.3.4",
     "sqlite3": "^5.1.7",
     "swagger-jsdoc": "^6.2.8",

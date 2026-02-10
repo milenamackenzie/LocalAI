@@ -37,14 +37,17 @@ app.use(express.urlencoded({ extended: true }));
 // app.use(morgan('combined', { stream: logger.stream }));
 
 // API Routes (Version 1)
+// Unified routing for the discovery engine
 app.use('/api/v1', routes);
+
 // Also mount /api for convenience (redirecting or just alias)
 app.use('/api', routes);
 
 // 404 Handler
 app.use((req, res, next) => {
   const error = new Error(`Route not found: ${req.originalUrl}`);
-  error.status = 404;
+  error.statusCode = 404;
+  error.status = 'fail';
   next(error);
 });
 

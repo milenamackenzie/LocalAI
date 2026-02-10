@@ -32,7 +32,7 @@ class AIService {
             const response = await axios.post(`${this.baseUrl}/chat/completions`, {
                 model: this.model,
                 messages: [
-                    { role: "system", content: "You are a helpful local assistant. Recommend specific activities or places. Return ONLY JSON with fields: item_title, item_description, category, score (0-1)." },
+                    { role: "system", content: "You are a helpful local assistant. Recommend specific activities or places. Return ONLY JSON with fields: item_title, item_description, category, score (0-1), reasoning (a brief explanation of why this matches the request)." },
                     { role: "user", content: prompt }
                 ],
                 temperature: 0.7,
@@ -63,7 +63,7 @@ class AIService {
         this.lastFailureTime = null;
     }
 
-    _onFailure(error) {
+    _onFailure(_error) {
         this.failureCount++;
         this.lastFailureTime = Date.now();
         if (this.failureCount >= this.FAILURE_THRESHOLD) {
@@ -108,9 +108,11 @@ class AIService {
             item_title: `Mock Recommendation for ${context}`,
             item_description: "This is a simulated AI response for development purposes.",
             category: "test",
-            score: 0.95
+            score: 0.95,
+            reasoning: "Matches the user's interest based on the provided context."
         };
     }
+
 }
 
 module.exports = new AIService();
