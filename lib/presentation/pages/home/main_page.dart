@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
-import '../../blocs/bookmark_bloc.dart';
-import '../../domain/entities/location.dart';
-import '../../widgets/recommendation_card.dart';
-import '../../widgets/category_scroller.dart';
+import '../../blocs/auth_bloc.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -14,237 +13,306 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  String _selectedCategory = 'All';
-  bool _isRefreshing = false;
+  final MapController _mapController = MapController();
+  final TextEditingController _promptController = TextEditingController();
+  int _selectedIndex = 1; // Middle button (Main page) is selected
+  
+  // Default location (London, UK)
+  LatLng _currentLocation = LatLng(51.5074, -0.1278);
+  
+  final List<Marker> _markers = [];
 
-  final List<Location> topRatedLocations = [
-    Location(id: '1', title: 'Gourmet Kitchen', category: 'Food & Dining', score: 0.98, imageUrl: null, isBookmarked: false),
-    Location(id: '2', title: 'Sunny Beach Resort', category: 'Travel & Leisure', score: 0.95, imageUrl: null, isBookmarked: false),
-    Location(id: '3', title: 'Mountain Hiking Trail', category: 'Nature', score: 0.92, imageUrl: null, isBookmarked: false),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Add a sample marker
+    _markers.add(
+      Marker(
+        point: _currentLocation,
+        width: 40,
+        height: 40,
+        child: const Icon(
+          Icons.location_on,
+          color: Colors.red,
+          size: 40,
+        ),
+      ),
+    );
+  }
 
-  final List<Location> personalizedLocations = [
-    Location(id: '4', title: 'Central City Park', category: 'Nature', score: 0.85, imageUrl: null, isBookmarked: false),
-    Location(id: '5', title: 'Historic Museum', category: 'Culture', score: 0.88, imageUrl: null, isBookmarked: false),
-    Location(id: '6', title: 'Riverside Cafe', category: 'Food & Dining', score: 0.90, imageUrl: null, isBookmarked: false),
-    Location(id: '7', title: 'Art Gallery Downtown', category: 'Arts', score: 0.87, imageUrl: null, isBookmarked: false),
-    Location(id: '8', title: 'Tech Conference Center', category: 'Education', score: 0.89, imageUrl: null, isBookmarked: false),
-  ];
+  @override
+  void dispose() {
+    _promptController.dispose();
+    super.dispose();
+  }
 
-  Future<void> _handleRefresh() async {
-    setState(() => _isRefreshing = true);
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() => _isRefreshing = false);
+  void _onNavItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    
+    // Handle navigation based on selected index
+    switch (index) {
+      case 0:
+        context.push('/chat-history');
+        break;
+      case 1:
+        // Already on main page
+        break;
+      case 2:
+        context.push('/profile');
+        break;
+    }
+  }
+
+  void _handleAIPrompt() {
+    final prompt = _promptController.text.trim();
+    if (prompt.isNotEmpty) {
+      // Navigate to search results with the prompt
+      context.push('/search-results', extra: prompt);
+      _promptController.clear();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final size = MediaQuery.of(context).size;
+    final mapHeight = size.height * 0.75; // 75% of screen for map
 
-    return BlocBuilder<BookmarkBloc, BookmarkState>(
-      builder: (context, state) {
-        List<Location> bookmarks = [];
-        if (state is BookmarksLoaded) {
-          bookmarks = state.bookmarks;
-        }
-
-        bool isBookmarked(String id) => bookmarks.any((b) => b.id == id);
-
-        return Scaffold(
-          body: RefreshIndicator(
-            onRefresh: _handleRefresh,
-        child: CustomScrollView(
-          slivers: [
-            // App Bar / Header
-            SliverAppBar(
-              expandedHeight: 120,
-              floating: true,
-              pinned: true,
-              elevation: 0,
-              backgroundColor: colorScheme.surface,
-              flexibleSpace: FlexibleSpaceBar(
-                background: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Welcome Back,',
-                        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-                      ),
-                      Text(
-                        'Milena Mackenzie',
-                        style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      body: Stack(
+        children: [
+          // OpenStreetMap (3/4 of the page)
+          SizedBox(
+            height: mapHeight,
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _currentLocation,
+                initialZoom: 13.0,
+                minZoom: 3.0,
+                maxZoom: 18.0,
               ),
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: CircleAvatar(
-                    backgroundColor: colorScheme.primaryContainer,
-                    child: IconButton(
-                      icon: Icon(Icons.person_outline, color: colorScheme.primary),
-                      onPressed: () => context.push('/profile'),
-                    ),
-                  ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.localai.app',
+                  tileBuilder: (context, widget, tile) {
+                    return ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                        Colors.grey.withOpacity(0.1),
+                        BlendMode.saturation,
+                      ),
+                      child: widget,
+                    );
+                  },
+                ),
+                MarkerLayer(
+                  markers: _markers,
                 ),
               ],
             ),
+          ),
 
-            // AI Search Bar (Tap to Search)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                child: Hero(
-                  tag: 'search_bar',
-                  child: GestureDetector(
-                    onTap: () => context.push('/search'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
+          // User Profile Icon (Top Right)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            right: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.person_outline, color: Colors.grey),
+                onPressed: () => context.push('/profile'),
+              ),
+            ),
+          ),
+
+          // AI Prompt Bar (Below map, above navigation)
+          Positioned(
+            bottom: 80, // Above bottom navigation bar
+            left: 16,
+            right: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _promptController,
+                      decoration: InputDecoration(
+                        hintText: 'Where do you want to go?',
+                        hintStyle: TextStyle(color: Colors.grey[600]),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.search, color: colorScheme.primary),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Where do you want to go today?',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.tune, color: Colors.white, size: 20),
-                          ),
-                        ],
+                      onSubmitted: (_) => _handleAIPrompt(),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.auto_awesome, color: Colors.white),
+                        onPressed: _handleAIPrompt,
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
+          ),
+        ],
+      ),
 
-            // Category Scroller
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: CategoryScroller(
-                  selectedCategory: _selectedCategory,
-                  onCategorySelected: (category) {
-                    setState(() => _selectedCategory = category);
-                  },
-                ),
-              ),
+      // Bottom Navigation Bar
+      bottomNavigationBar: Container(
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
             ),
-
-            // Top Rated Section Header
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Top Rated Near You', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                    TextButton(
-                      onPressed: () => context.push('/top-rated'),
-                      child: const Text('See All'),
-                    ),
-                  ],
-                ),
-              ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavButton(
+              icon: Icons.history,
+              label: 'History',
+              index: 0,
             ),
-
-            // Horizontal Top Rated Carousel
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 280,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: topRatedLocations.length,
-                  itemBuilder: (context, index) {
-                    final location = topRatedLocations[index];
-                    return SizedBox(
-                      width: 300,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: RecommendationCard(
-                          id: location.id,
-                          title: location.title,
-                          category: location.category,
-                          score: location.score,
-                          imageUrl: location.imageUrl,
-                          isBookmarked: isBookmarked(location.id),
-                          onTap: () => context.push('/recommendation/${location.id}'),
-                          onBookmarkToggle: () => context.read<BookmarkBloc>().add(ToggleBookmarkRequested(location)),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+            _buildNavButton(
+              icon: Icons.auto_awesome,
+              label: 'Discover',
+              index: 1,
+              isCenter: true,
             ),
-
-            // Main Feed Section Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
-                child: Text('Personalized for You', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-              ),
+            _buildNavButton(
+              icon: Icons.person_outline,
+              label: 'Profile',
+              index: 2,
             ),
-
-            // Vertical Recommendation Feed
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final location = personalizedLocations[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 20),
-                      child: RecommendationCard(
-                        id: location.id,
-                        title: location.title,
-                        category: location.category,
-                        score: location.score,
-                        imageUrl: location.imageUrl,
-                        isBookmarked: isBookmarked(location.id),
-                        onTap: () => context.push('/recommendation/${location.id}'),
-                        onBookmarkToggle: () => context.read<BookmarkBloc>().add(ToggleBookmarkRequested(location)),
-                      ),
-                    );
-                  },
-                  childCount: personalizedLocations.length,
-                ),
-              ),
-            ),
-            
-            // Bottom Padding for FAB
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => context.push('/search'),
-            backgroundColor: colorScheme.primary,
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('Ask AI'),
+    );
+  }
+
+  Widget _buildNavButton({
+    required IconData icon,
+    required String label,
+    required int index,
+    bool isCenter = false,
+  }) {
+    final isSelected = _selectedIndex == index;
+    final theme = Theme.of(context);
+
+    if (isCenter) {
+      return GestureDetector(
+        onTap: () => _onNavItemTapped(index),
+        child: Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: isSelected 
+                ? Colors.grey[200] 
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
           ),
-        );
-      },
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: theme.colorScheme.primary,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isSelected 
+                      ? theme.colorScheme.primary 
+                      : Colors.grey[600],
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _onNavItemTapped(index),
+      child: Container(
+        width: 70,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected 
+                  ? theme.colorScheme.primary 
+                  : Colors.grey[600],
+              size: 26,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isSelected 
+                    ? theme.colorScheme.primary 
+                    : Colors.grey[600],
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
