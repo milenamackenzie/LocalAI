@@ -27,6 +27,7 @@ class LocalDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         query TEXT NOT NULL,
         response TEXT NOT NULL,
+        bookmarked INTEGER DEFAULT 0,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     ''');
@@ -63,17 +64,52 @@ class LocalDatabase {
     return maps.isNotEmpty;
   }
 
-  Future<int> insertChat(String query, String response) async {
+  Future<int> insertChat(String query, String response, {bool bookmarked = false}) async {
     final db = await database;
     return await db.insert('chat_history', {
       'query': query,
       'response': response,
+      'bookmarked': bookmarked ? 1 : 0,
     });
   }
 
   Future<List<Map<String, dynamic>>> getChatHistory() async {
     final db = await database;
     return await db.query('chat_history', orderBy: 'timestamp DESC');
+  }
+
+  Future<List<Map<String, dynamic>>> getBookmarkedChats() async {
+    final db = await database;
+    return await db.query(
+      'chat_history',
+      where: 'bookmarked = ?',
+      whereArgs: [1],
+      orderBy: 'timestamp DESC',
+    );
+  }
+
+  Future<int> toggleChatBookmark(String query, bool bookmarked) async {
+    final db = await database;
+    // Check if chat exists
+    final existing = await db.query(
+      'chat_history',
+      where: 'query = ?',
+      whereArgs: [query],
+      limit: 1,
+    );
+    
+    if (existing.isEmpty) {
+      // Insert new chat with bookmark
+      return await insertChat(query, '', bookmarked: bookmarked);
+    } else {
+      // Update existing chat bookmark status
+      return await db.update(
+        'chat_history',
+        {'bookmarked': bookmarked ? 1 : 0},
+        where: 'query = ?',
+        whereArgs: [query],
+      );
+    }
   }
 
   Future<int> deleteChat(int id) async {
