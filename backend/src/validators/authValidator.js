@@ -29,8 +29,15 @@ exports.registerValidators = [
 ];
 
 exports.loginValidators = [
-    body('email').trim().notEmpty().isEmail(),
-    body('password').notEmpty()
+    body('username').optional().trim(),
+    body('email').optional().trim(),
+    body('password').notEmpty().withMessage('Password is required'),
+    body().custom((value, { req }) => {
+        if (!req.body.email && !req.body.username) {
+            throw new Error('Either email or username is required');
+        }
+        return true;
+    })
 ];
 
 exports.refreshTokenValidators = [

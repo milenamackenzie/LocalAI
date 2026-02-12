@@ -22,8 +22,10 @@ describe('Integration Tests: Auth Endpoints', () => {
       
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.verificationToken).toBeDefined();
-      expect(res.body.data.token).toBeUndefined(); // No access token on register anymore
+      expect(res.body.data.accessToken).toBeDefined();
+      expect(res.body.data.refreshToken).toBeDefined();
+      expect(res.body.data.user).toBeDefined();
+      expect(res.body.data.user.email).toBe(validUser.email);
     });
 
     test('should fail with weak password', async () => {

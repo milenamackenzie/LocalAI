@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'injection_container.dart' as di;
 import 'presentation/blocs/theme_bloc.dart';
 import 'presentation/blocs/auth_bloc.dart';
+import 'presentation/blocs/bookmark_bloc.dart';
+import 'presentation/blocs/review_bloc.dart';
+import 'presentation/blocs/user_hub_bloc.dart';
 import 'presentation/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 
@@ -35,11 +38,11 @@ class _LocalAIAppState extends State<LocalAIApp> {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (context) => sl<AuthBloc>()..add(AppStarted())),
-        BlocProvider(create: (context) => sl<BookmarkBloc>()),
-        BlocProvider(create: (context) => sl<ReviewBloc>()),
-        BlocProvider(create: (context) => sl<ThemeBloc>()),
-        BlocProvider(create: (context) => sl<UserHubBloc>()),
+        BlocProvider.value(value: _authBloc),
+        BlocProvider(create: (context) => di.sl<BookmarkBloc>()),
+        BlocProvider(create: (context) => di.sl<ReviewBloc>()),
+        BlocProvider(create: (context) => di.sl<ThemeBloc>()),
+        BlocProvider(create: (context) => di.sl<UserHubBloc>()),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {

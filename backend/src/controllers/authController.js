@@ -17,9 +17,12 @@ const generateRandomToken = () => crypto.randomBytes(32).toString('hex');
 
 // Helper: Generate Access Token
 const generateAccessToken = (user) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role },
-    process.env.JWT_SECRET || 'fallback_secret',
+    process.env.JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRY }
   );
 };
@@ -48,7 +51,7 @@ exports.register = async (req, res, next) => {
     
     const user = await userRepository.create({ username, email, passwordHash, verificationToken });
 
-    logger.info(`New user registered: ${user.id} (${email}). Verification Token: ${verificationToken}`);
+    logger.info(`New user registered: ${user.id} (${email})`);
 
     // Automatically generate tokens for immediate login after registration
     const accessToken = generateAccessToken(user);
@@ -61,7 +64,7 @@ exports.register = async (req, res, next) => {
         accessToken,
         refreshToken,
         user: user.toJSON(),
-        verificationToken // For development/testing ease
+        
       }
     });
 
@@ -72,9 +75,21 @@ exports.register = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, username, password } = req.body;
 
-    const user = await userRepository.findByEmail(email);
+    // Allow login with either email or username
+    let user;
+    if (email) {
+      user = await userRepository.findByEmail(email);
+    } else if (username) {
+      // Check if username is an email format
+      if (username.includes('@')) {
+        user = await userRepository.findByEmail(username);
+      } else {
+        user = await userRepository.findByUsername(username);
+      }
+    }
+
     if (!user) {
       // Fake delay to prevent timing attacks
       await bcrypt.compare(password, '$2b$12$...'); 
@@ -191,11 +206,10 @@ exports.forgotPassword = async (req, res, next) => {
             const expiresAt = new Date(Date.now() + 3600000); // 1 hour
             await userRepository.setResetToken(user.id, resetToken, expiresAt);
             
-            logger.info(`Password reset requested for ${email}. Token: ${resetToken}`);
+logger.info(`Password reset requested for ${email}`);
             // Send email logic here...
             
-            // For dev/test:
-            return res.status(200).json({ success: true, message: 'Reset link sent', debugToken: resetToken });
+            return res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent' });
         }
         
         // Always return 200 to prevent user enumeration
