@@ -23,6 +23,7 @@ dependencies:
   # Local Storage
   shared_preferences: ^2.2.2
   sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.2+1
   
 # UI/UX
   google_fonts: ^8.0.1
@@ -34,6 +35,8 @@ dependencies:
   # Maps
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+  geolocator: ^10.1.0
+  permission_handler: ^11.0.1
 
 dev_dependencies:
   flutter_test:

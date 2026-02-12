@@ -91,12 +91,9 @@ class ChatHistoryPage extends StatelessWidget {
                   ),
                   trailing: const Icon(Icons.chevron_right, size: 20),
                   onTap: () {
-                    // Navigate back to main page and trigger search
-                    context.go('/');
-                    // TODO: Pass the query to main page to show results
-                    Future.delayed(const Duration(milliseconds: 500), () {
-                      context.push('/search-results', extra: item['query']);
-                    });
+                    // Navigate back to main page
+                    // The search will be triggered on the main page with the query
+                    context.go('/', extra: item['query']);
                   },
                 ),
               );

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
 import '../../blocs/auth_bloc.dart';
 import '../../../core/database/local_database.dart';
+import '../../../core/services/ai_service_mistral.dart';
 import '../../../injection_container.dart' as di;
 
 class MainPage extends StatefulWidget {
@@ -27,28 +30,73 @@ class _MainPageState extends State<MainPage> with SingleTickerProviderStateMixin
   final Set<String> _bookmarkedPrompts = {}; // Store bookmarked prompts
   bool _showHistory = false; // Toggle history panel
   double _historyHeight = 200.0; // Height of history panel
+  bool _isLoading = false; // Loading state for AI search
+  double _searchRadius = 3000; // 3km default search radius
+  bool _isLocationDetermined = false; // GPS location status
+  String _locationStatus = 'Getting location...'; // Location status message
   
   late final LocalDatabase _localDatabase;
+  late final AIService _aiService;
 
   @override
   void initState() {
     super.initState();
     _localDatabase = di.sl<LocalDatabase>();
+    _aiService = AIService();
     _loadBookmarkedPrompts();
-    
-    // Add a sample marker
-    _markers.add(
-      Marker(
-        point: _currentLocation,
-        width: 40,
-        height: 40,
-        child: const Icon(
-          Icons.location_on,
-          color: Colors.red,
-          size: 40,
-        ),
-      ),
-    );
+    _determineUserLocation();
+  }
+
+  Future<void> _determineUserLocation() async {
+    try {
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      
+      if (permission == LocationPermission.denied || 
+          permission == LocationPermission.deniedForever) {
+        setState(() {
+          _locationStatus = 'Location permission denied';
+          _isLocationDetermined = true; // Use default London location
+        });
+        return;
+      }
+      
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+        _locationStatus = 'Location found';
+        _isLocationDetermined = true;
+      });
+      
+      // Center map on user's location with a small delay to ensure map is ready
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted) {
+        try {
+          _mapController.move(_currentLocation, 15.0);
+        } catch (e) {
+          print('Error moving map: $e');
+        }
+      }
+      
+    } catch (e) {
+      print('Error getting location: $e');
+      if (!mounted) return;
+      setState(() {
+        _locationStatus = 'Using default location (London)';
+        _isLocationDetermined = true; // Use default London location
+      });
+    }
   }
   
   Future<void> _loadBookmarkedPrompts() async {
@@ -75,31 +123,79 @@ class _MainPageState extends State<MainPage> with SingleTickerProviderStateMixin
     // Handle navigation based on selected index
     switch (index) {
       case 0:
-        context.push('/top-rated'); // Recommendations page
+        context.go('/recommendations'); // Top Rated Places page
         break;
       case 1:
         // Already on main page
         break;
       case 2:
-        context.push('/profile'); // User profile
+        context.go('/profile'); // User profile
         break;
     }
   }
 
-  void _handleAIPrompt() {
+  Future<void> _handleAIPrompt() async {
     final prompt = _promptController.text.trim();
     if (prompt.isNotEmpty) {
       // Add to search history
       setState(() {
         _searchHistory.insert(0, prompt); // Add to beginning of list
         _showHistory = true; // Show the history panel
+        _isLoading = true; // Show loading state
       });
       
-      // Save to local database/chat history (TODO: implement persistence)
-      
-      // Navigate to search results with the prompt
-      context.push('/search-results', extra: prompt);
+      // Clear prompt immediately
       _promptController.clear();
+      
+      try {
+        // Process the AI search with current radius
+        final locations = await _aiService.searchLocations(
+          prompt, 
+          _currentLocation, 
+          radius: _searchRadius
+        );
+        
+        setState(() {
+          _markers.clear();
+          // Keep the current location marker (red pin)
+          _markers.add(
+            Marker(
+              point: _currentLocation,
+              width: 40,
+              height: 40,
+              child: const Icon(
+                Icons.my_location,
+                color: Colors.red,
+                size: 40,
+              ),
+            ),
+          );
+          // Add search result markers
+          _markers.addAll(locations);
+          _isLoading = false;
+        });
+        
+        // Show success message
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Found ${locations.length} locations matching "$prompt" in ${(_searchRadius/1000).round()}km radius'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error searching locations: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -174,12 +270,52 @@ class _MainPageState extends State<MainPage> with SingleTickerProviderStateMixin
                     );
                   },
                 ),
+                // Search radius circle overlay
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: _currentLocation,
+                      radius: _searchRadius,
+                      useRadiusInMeter: true,
+                      color: Colors.blue.withOpacity(0.1),
+                      borderColor: Colors.blue.withOpacity(0.4),
+                      borderStrokeWidth: 2,
+                    ),
+                  ],
+                ),
                 MarkerLayer(
                   markers: _markers,
                 ),
               ],
             ),
           ),
+
+          // Loading Indicator
+          if (_isLoading)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Searching locations...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           // User Profile Icon with Username (Top Left)
           Positioned(
@@ -354,6 +490,69 @@ class _MainPageState extends State<MainPage> with SingleTickerProviderStateMixin
               ),
             ),
 
+          // Search Radius Control (above prompt bar)
+          Positioned(
+            bottom: 70, // Above the prompt bar
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.radar, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${(_searchRadius/1000).round()}km',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.tune, size: 16, color: Colors.grey[600]),
+                    onSelected: (String value) {
+                      setState(() {
+                        _searchRadius = double.parse(value);
+                      });
+                    },
+                    itemBuilder: (BuildContext context) {
+                      return [
+                        PopupMenuItem<String>(
+                          value: '1000',
+                          child: Text('1km radius'),
+                        ),
+                        PopupMenuItem<String>(
+                          value: '3000',
+                          child: Text('3km radius'),
+                        ),
+                        PopupMenuItem<String>(
+                          value: '5000',
+                          child: Text('5km radius'),
+                        ),
+                        PopupMenuItem<String>(
+                          value: '10000',
+                          child: Text('10km radius'),
+                        ),
+                      ];
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           // AI Prompt Bar (at bottom of body, right above navigation bar)
           Positioned(
             bottom: 0, // At bottom of Stack (navigation bar is separate below this)
@@ -436,7 +635,7 @@ class _MainPageState extends State<MainPage> with SingleTickerProviderStateMixin
           children: [
             _buildNavButton(
               icon: Icons.location_city_outlined,
-              label: 'Recommendations',
+              label: 'Places',
               index: 0,
             ),
             _buildNavButton(
@@ -521,7 +720,7 @@ class _MainPageState extends State<MainPage> with SingleTickerProviderStateMixin
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 9, // Smaller font
                 color: isSelected 
                     ? theme.colorScheme.primary 
                     : Colors.grey[600],

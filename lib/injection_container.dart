@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:dio/dio.dart';
 import 'core/database/local_database.dart';
 import 'core/network/api_client.dart';
 import 'data/repositories/auth_repository_impl.dart';
@@ -14,14 +15,6 @@ import 'presentation/blocs/bookmark_bloc.dart';
 import 'presentation/blocs/review_bloc.dart';
 import 'presentation/blocs/theme_bloc.dart';
 import 'presentation/blocs/user_hub_bloc.dart';
-import 'presentation/blocs/bookmark_bloc.dart';
-import 'core/database/local_database.dart';
-import 'domain/repositories/auth_repository.dart';
-import 'domain/repositories/preference_repository.dart';
-import 'domain/repositories/bookmark_repository.dart';
-import 'data/repositories/auth_repository_impl.dart';
-import 'data/repositories/preference_repository_impl.dart';
-import 'data/repositories/bookmark_repository_impl.dart';
 
 final sl = GetIt.instance;
 
@@ -34,7 +27,7 @@ Future<void> init() async {
 
   //! Repositories
   sl.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(remoteDataSource: sl()),
+    () => AuthRepositoryImpl(apiClient: sl()),
   );
   sl.registerLazySingleton<PreferenceRepository>(
     () => PreferenceRepositoryImpl(apiClient: sl()),
@@ -42,17 +35,13 @@ Future<void> init() async {
   sl.registerLazySingleton<BookmarkRepository>(
     () => BookmarkRepositoryImpl(apiClient: sl(), localDatabase: sl()),
   );
-
-  //! Data sources
-  sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(apiClient: sl()),
+  sl.registerLazySingleton<ReviewRepository>(
+    () => ReviewRepositoryImpl(apiClient: sl()),
   );
 
   //! Core
+  sl.registerLazySingleton(() => Dio());
   sl.registerLazySingleton(() => ApiClient(sl()));
   sl.registerLazySingleton(() => LocalDatabase());
-
-  //! External
-  sl.registerLazySingleton(() => Dio());
 }
 

@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../presentation/blocs/auth_bloc.dart';
 import '../../presentation/pages/home/main_page.dart';
 import '../../presentation/pages/home/top_rated_page.dart';
+import '../../presentation/pages/home/recommendation_page.dart';
 import '../../presentation/pages/theme_preview_page.dart';
 import '../../presentation/pages/auth/login_page.dart';
 import '../../presentation/pages/auth/register_page.dart';
@@ -23,6 +25,7 @@ class AppRouter {
       navigatorKey: rootNavigatorKey,
       initialLocation: '/',
       debugLogDiagnostics: true,
+      refreshListenable: _GoRouterRefreshStream(authBloc.stream),
       
       // Auth Guard
       redirect: (context, state) {
@@ -49,8 +52,8 @@ class AppRouter {
           builder: (context, state) => const MainPage(),
         ),
         GoRoute(
-          path: '/top-rated',
-          builder: (context, state) => const TopRatedPage(),
+          path: '/recommendations',
+          builder: (context, state) => const RecommendationPage(),
         ),
         GoRoute(
           path: '/search',
@@ -112,5 +115,23 @@ class AppRouter {
       
       errorBuilder: (context, state) => const NotFoundPage(),
     );
+  }
+}
+
+// Helper class to convert Stream to ChangeNotifier for GoRouter
+class _GoRouterRefreshStream extends ChangeNotifier {
+  _GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen(
+      (dynamic _) => notifyListeners(),
+    );
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
   }
 }
